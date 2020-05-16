@@ -38,8 +38,10 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
     //implementation 'com.google.android.exoplayer:exoplayer:r2.2.0'
-  implementation 'com.google.android.exoplayer:exoplayer:2.10.8'
- implementation 'com.google.android.exoplayer:exoplayer-core:2.10.8'
-    implementation 'com.google.android.exoplayer:exoplayer-dash:2.10.8'
-    implementation 'com.google.android.exoplayer:exoplayer-ui:2.10.8'
+  implementation 'com.google.android.exoplayer:exoplayer:2.10.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.6.0'
+    /*implementation 'com.google.android.exoplayer:exoplayer-core:2.10.8'
+       implementation 'com.google.android.exoplayer:exoplayer-dash:2.10.8'
+       implementation 'com.google.android.exoplayer:exoplayer-ui:2.10.8'
+       implementation 'commons-codec:commons-codec:20041127.091804'*/
 }
