@@ -10,21 +10,16 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.TransferListener;
-import com.google.android.exoplayer2.upstream.crypto.AesCipherDataSource;
-import com.google.android.exoplayer2.upstream.crypto.AesFlushingCipher;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -41,6 +36,7 @@ public class MyAesCipherDataSource implements DataSource {
     private static final byte[] SALT = {3, (byte) 253, (byte) 245, (byte) 149, 86, (byte) 148, (byte) 148, 43};
     private static final byte[] IV = {(byte) 139, (byte) 214, 102, 1, (byte) 150, (byte) 134, (byte) 236, (byte) 182, 89, 110, 20, 55, (byte) 243, 120, 76, (byte) 182};
     private static final String HASH_KEY = "SHA-256";
+    private int index=0;
 
     public MyAesCipherDataSource(DataSource upstream) {
         this.upstream = upstream;
@@ -62,66 +58,19 @@ public class MyAesCipherDataSource implements DataSource {
             sha.update(PASSWORD.getBytes(StandardCharsets.US_ASCII));
             byte[] key=sha.digest();
             SecretKeySpec sks = new SecretKeySpec(key, AES_ALGORITHM);
-            cipher = Cipher.getInstance("AES/CTR/NoPadding");
+            //cipher = Cipher.getInstance("AES/CTR/NoPadding");
+            cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+
             IvParameterSpec ivParameterSpec = new IvParameterSpec(IV);
             cipher.init(
                     Cipher.DECRYPT_MODE,
                     sks,
                     ivParameterSpec);
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-        inputStream=new CipherInputStream(new InputStream() {
-            @Override
-            public int read(byte[] b) throws IOException {
-              return read(b,0,b.length);
-            }
-            @Override
-            public int read(byte[] b, int off, int len) throws IOException {
-                if (len == 0) {
-                    return 0;
-                }
-                int read = upstream.read(b, off, len);
-                if (read == C.RESULT_END_OF_INPUT) {
-                    return C.RESULT_END_OF_INPUT;
-                }
-                return read;
-            }
-            @Override
-            public int read() throws IOException {
-               return -1;
-            }
-            @Override
-            public void close() throws IOException {
-               upstream.close();
-            }
-            public long skip(long n) throws IOException {
-                throw new RuntimeException("Stub!");
-            }
-
-            public int available() throws IOException {
-                throw new RuntimeException("Stub!");
-            }
-
-
-
-            public synchronized void mark(int readlimit)
-            {
-                throw new RuntimeException("Stub!");
-            }
-
-            public synchronized void reset() throws IOException {
-                throw new RuntimeException("Stub!");
-            }
-
-            public boolean markSupported()
-            {
-                throw new RuntimeException("Stub!");
-            }
-        },cipher);
-        return dataLength;
+        inputStream=new CipherInputStream(new MyInputStream(upstream),cipher);
+        return -1;
     }
 
     @Override

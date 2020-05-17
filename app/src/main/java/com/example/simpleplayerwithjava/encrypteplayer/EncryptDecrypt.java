@@ -14,6 +14,9 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.PrimitiveIterator;
+import java.util.Random;
+import java.util.stream.IntStream;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -22,8 +25,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class EncryptDecrypt
-{
+public class EncryptDecrypt {
     private static final String AES_ALGORITHM = "AES";
     private static final String AES_TRANSFORMATION = "AES/CBC/PKCS5Padding";
     private static final String PASSWORD = "1133";
@@ -33,8 +35,7 @@ public class EncryptDecrypt
 
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    public static void encryptfile(File path,File out) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, InvalidKeySpecException
-    {
+    public static void encryptfile(File path, File out) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, InvalidKeySpecException {
         FileInputStream fis = new FileInputStream(path);
         FileOutputStream fos = new FileOutputStream(out);
 
@@ -44,19 +45,19 @@ public class EncryptDecrypt
 
         sha.update(PASSWORD.getBytes(StandardCharsets.US_ASCII));
 
-        byte[] key=sha.digest();
+        byte[] key = sha.digest();
 
         SecretKeySpec sks = new SecretKeySpec(key, AES_ALGORITHM);
 
-        Cipher cipher = Cipher.getInstance(AES_TRANSFORMATION);
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 
         IvParameterSpec ivParameterSpec = new IvParameterSpec(IV);
-        cipher.init(Cipher.ENCRYPT_MODE,sks,ivParameterSpec);
+        cipher.init(Cipher.ENCRYPT_MODE, sks, ivParameterSpec);
 
         CipherOutputStream cos = new CipherOutputStream(fos, cipher);
         int b;
         byte[] d = new byte[8];
-        while((b = fis.read(d)) != -1) {
+        while ((b = fis.read(d)) != -1) {
             cos.write(d, 0, b);
         }
         cos.flush();
@@ -65,8 +66,7 @@ public class EncryptDecrypt
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    public static void decrypt(File path , File outPath) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException
-    {
+    public static void decrypt(File path, File outPath) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
         FileInputStream fis = new FileInputStream(path);
         FileOutputStream fos = new FileOutputStream(outPath);
 
@@ -77,20 +77,29 @@ public class EncryptDecrypt
         sha.update(PASSWORD.getBytes(StandardCharsets.US_ASCII));
 
 
-        byte[] key=sha.digest();
+        byte[] key = sha.digest();
 
         SecretKeySpec sks = new SecretKeySpec(key, AES_ALGORITHM);
 
         Cipher cipher = Cipher.getInstance(AES_TRANSFORMATION);
 
         IvParameterSpec ivParameterSpec = new IvParameterSpec(IV);
-        cipher.init(Cipher.DECRYPT_MODE,sks,ivParameterSpec);
+        cipher.init(Cipher.DECRYPT_MODE, sks, ivParameterSpec);
 
         CipherInputStream cis = new CipherInputStream(fis, cipher);
         int b;
-        byte[] d = new byte[8];
-        while((b = cis.read(d)) != -1) {
+        Random random = new Random();
+        int size = 8;
+        PrimitiveIterator.OfInt intStream = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            intStream = random.ints(1, 100).iterator();
+            size = intStream.next();
+        }
+        byte[] d = new byte[100];
+        while ((b = cis.read(d, 0, size)) != -1) {
             fos.write(d, 0, b);
+            if (intStream != null)
+                size = intStream.next();
         }
         fos.flush();
         fos.close();
