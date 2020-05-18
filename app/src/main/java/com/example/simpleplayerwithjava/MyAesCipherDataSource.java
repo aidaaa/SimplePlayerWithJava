@@ -26,7 +26,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class MyAesCipherDataSource implements DataSource {
 
     private final DataSource upstream;
-    FileOutputStream output;
+    //FileOutputStream output;
     private @Nullable
     Cipher cipher;
     private  CipherInputStream inputStream;
@@ -50,7 +50,7 @@ public class MyAesCipherDataSource implements DataSource {
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     public long open(DataSpec dataSpec) throws IOException {
-        output=new FileOutputStream(dataSpec.uri.toString()+".ts");
+       // output=new FileOutputStream(dataSpec.uri.toString()+".ts");
         long dataLength = upstream.open(dataSpec);
         try {
             MessageDigest sha = MessageDigest.getInstance(HASH_KEY);
@@ -82,7 +82,7 @@ public class MyAesCipherDataSource implements DataSource {
         if (read == C.RESULT_END_OF_INPUT) {
             return C.RESULT_END_OF_INPUT;
         }
-        output.write(data,offset,read);
+        //output.write(data,offset,read);
         return read;
     }
 
@@ -101,7 +101,7 @@ public class MyAesCipherDataSource implements DataSource {
     public void close() throws IOException {
         cipher = null;
         inputStream.close();
-        output.close();
+        //output.close();
     }
 
 

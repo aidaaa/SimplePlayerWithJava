@@ -1,7 +1,10 @@
 package com.example.simpleplayerwithjava;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -22,9 +25,14 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
+import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.FileDataSource;
+import com.google.android.exoplayer2.upstream.HttpDataSource;
+import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.upstream.crypto.AesCipherDataSource;
+import com.google.android.exoplayer2.util.Util;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -38,20 +46,17 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import javax.crypto.NoSuchPaddingException;
 
 public class NewPlayerActivity extends AppCompatActivity {
 
     private PlayerView pw;
-    private SimpleExoPlayer player;
-    private File fileOrginal,fileEncrypt_CTR,fileEncrypt_CBC,fileEncrypt_ECB,fileEncrypt_CBC_PKCS7Padding,fileEncrypt_CBC_NO_SALT;
-    private static final String AES_ALGORITHM = "AES";
-    private static final String AES_TRANSFORMATION = "AES/CBC/PKCS5Padding";
-    private static final String PASSWORD = "1133";
-    private static final byte[] SALT = {3, (byte) 253, (byte) 245, (byte) 149, 86, (byte) 148, (byte) 148, 43};
-    private static final byte[] IV = {(byte) 139, (byte) 214, 102, 1, (byte) 150, (byte) 134, (byte) 236, (byte) 182, 89, 110, 20, 55, (byte) 243, 120, 76, (byte) 182};
-    private static final String HASH_KEY = "SHA-256";
+    MutableLiveData<String> base_url=new MutableLiveData<>();
+    File fileOrginal;
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
@@ -60,31 +65,22 @@ public class NewPlayerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_new_player);
         pw = findViewById(R.id.simplePw);
 
-        fileOrginal =new File(this.getExternalFilesDir(null),"orginal.mpg");
-        fileEncrypt_CTR=new File(this.getExternalFilesDir(null) , "encrypt_ctr.mpg");
-        fileEncrypt_CBC=new File(this.getExternalFilesDir(null) , "encrypt_cbc.mpg");
-        fileEncrypt_CBC_NO_SALT=new File(this.getExternalFilesDir(null) , "encrypt_cbc_no_salt.mpg");
-        fileEncrypt_ECB=new File(this.getExternalFilesDir(null) , "encrypt_ecb.mpg");
-        fileEncrypt_CBC_PKCS7Padding=new File(this.getExternalFilesDir(null) , "encrypt_cbc_PKCS7Padding.mpg");
-        File test=new File(this.getExternalFilesDir(null) , "test.mpg");
-        File test1=new File(this.getExternalFilesDir(null) , "test1.mpg");
+        fileOrginal = new File(this.getExternalFilesDir(null), "orginal1.mpg");
 
-
-        //  long l=fileToPipe.length();
-        //  int a=fileToPipe.getPath().length();
-        //fileToPipe.delete();
-
-        //  System.out.println(String.valueOf(l));
-        //  System.out.println(String.valueOf(a));
-
-       /* PipeAPI pipeAPI = new PipeAPI();
-            pipeAPI.execute();*/
-            setPlayer();
+        HttpClientLocal clientLocal=new HttpClientLocal();
+        try {
+            String url=clientLocal.execute().get();
+            setLivePlayer(url);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
     }
 
 
-    private void setPlayer() {
+    private void setPlayerByFile() {
 
         TrackSelector trackSelector = new DefaultTrackSelector();
 
@@ -94,13 +90,45 @@ public class NewPlayerActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.KITKAT)
             @Override
             public DataSource createDataSource() {
-                //MyAesCipherDataSource aes = new MyAesCipherDataSource(new DefaultHttpDataSource("",null));
                 MyAesCipherDataSource aes = new MyAesCipherDataSource(new FileDataSource());
                 return aes;
             }
         };
-        ProgressiveMediaSource.Factory pf=new ProgressiveMediaSource.Factory(factory);
-        MediaSource mediaSource =pf.createMediaSource(Uri.parse(this.getExternalFilesDir(null) + "/encrypt_cbc.mpg"));
+
+        ProgressiveMediaSource.Factory pf = new ProgressiveMediaSource.Factory(factory);
+        MediaSource mediaSource = pf.createMediaSource(Uri.parse(this.getExternalFilesDir(null) + "/orginal1.mpg"));
+
+
+        pw.setPlayer(simpleExoPlayer);
+        simpleExoPlayer.prepare(mediaSource);
+        simpleExoPlayer.setPlayWhenReady(true);
+
+        simpleExoPlayer.addListener(new ExoPlayer.EventListener() {
+            @Override
+            public void onPlayerError(ExoPlaybackException error) {
+                System.out.println(error.getMessage());
+            }
+
+        });
+    }
+
+    public void setLivePlayer(String url)
+    {
+        TrackSelector trackSelector = new DefaultTrackSelector();
+
+        SimpleExoPlayer simpleExoPlayer = ExoPlayerFactory.newSimpleInstance(this,trackSelector);
+
+        DataSource.Factory factory = new DataSource.Factory() {
+            @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+            @Override
+            public DataSource createDataSource() {
+                MyAesCipherDataSource aes = new MyAesCipherDataSource(new DefaultHttpDataSource(Util.getUserAgent(NewPlayerActivity.this, "exoplayer"), null));
+                return aes;
+            }
+        };
+
+        ProgressiveMediaSource.Factory pf = new ProgressiveMediaSource.Factory(factory);
+         MediaSource mediaSource = pf.createMediaSource(Uri.parse(url));
 
         pw.setPlayer(simpleExoPlayer);
         simpleExoPlayer.prepare(mediaSource);
@@ -133,7 +161,7 @@ public class NewPlayerActivity extends AppCompatActivity {
             byte[] b = null;
 
             try {
-                URL url = new URL("http://192.168.10.85:3030");
+                URL url = new URL("http://192.168.10.40:1010");
                 HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestMethod("GET");
                 urlConnection.connect();
@@ -144,8 +172,8 @@ public class NewPlayerActivity extends AppCompatActivity {
                 OutputStream os = new FileOutputStream(fileOrginal);
                 byte data[] = new byte[1024];
                 while ((count = is.read(data)) != -1) {
-                    os.write(data,0,count);
-                   // b = data;
+                    os.write(data, 0, count);
+                    // b = data;
                 }
                 os.flush();
                 is.close();
@@ -171,6 +199,82 @@ public class NewPlayerActivity extends AppCompatActivity {
             return b;
         }
     }
+
+    public class HttpClientLocal extends AsyncTask<Void,Void,String> {
+        @Override
+        protected String doInBackground(Void... voids) {
+            String base_url;
+
+            try {
+                URL url=new URL("http://192.168.10.40:1010");
+                HttpURLConnection connection= (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.connect();
+                base_url="http://192.168.10.40:1010";
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                base_url=null;
+            }
+            return base_url;
+        }
+    }
+
+
+/*    public void a()
+    {
+
+        HttpDataSource defaultHttpDataSource= new HttpDataSource() {
+            @Override
+            public void addTransferListener(TransferListener transferListener) {
+
+            }
+
+            @Override
+            public long open(DataSpec dataSpec) throws HttpDataSourceException {
+                return 0;
+            }
+
+            @Override
+            public void close() throws HttpDataSourceException {
+
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int readLength) throws HttpDataSourceException {
+                return 0;
+            }
+
+            @Nullable
+            @Override
+            public Uri getUri() {
+                return null;
+            }
+
+            @Override
+            public void setRequestProperty(String name, String value) {
+
+            }
+
+            @Override
+            public void clearRequestProperty(String name) {
+
+            }
+
+            @Override
+            public void clearAllRequestProperties() {
+
+            }
+
+            @Override
+            public Map<String, List<String>> getResponseHeaders() {
+                return null;
+            }
+        };
+        ProgressiveMediaSource progressiveMediaSource;
+        progressiveMediaSource = new ProgressiveMediaSource(Uri.parse("http://192.168.10.85:3030"),defaultHttpDataSource,
+                null,null,null,null,null);
+    }*/
 }
 
 
